@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Painel TV</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#171a2b;color:#eef0f6;font-family:"Trebuchet MS",Verdana,Arial,sans-serif}
+#home{position:absolute;top:0;right:0;bottom:0;left:0;padding:4% 5% 3%;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column}
+#top{display:-webkit-flex;display:flex;-webkit-align-items:baseline;align-items:baseline;-webkit-justify-content:space-between;justify-content:space-between}
+#clock{font-size:64px;font-weight:bold;letter-spacing:2px}
+#date{font-size:26px;color:#a9afc8}
+#tiles{-webkit-flex:1;flex:1;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between}
+.tile{width:31%;height:62%;max-height:360px;border-radius:22px;border:8px solid transparent;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:flex-end;justify-content:flex-end;padding:6%;color:#fff;cursor:pointer;-webkit-transition:-webkit-transform .15s;transition:transform .15s;opacity:.82}
+.tile b{font-size:44px;line-height:1.1}
+.tile span{font-size:22px;margin-top:8px;opacity:.85}
+.tile.on{border-color:#ffd23f;-webkit-transform:scale(1.07);transform:scale(1.07);opacity:1;box-shadow:0 0 0 6px rgba(255,210,63,.25)}
+#bar{font-size:22px;color:#a9afc8;display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between}
+#view{display:none;position:absolute;top:0;right:0;bottom:0;left:0;background:#000}
+#view iframe{position:absolute;top:56px;left:0;width:100%;height:calc(100% - 56px);border:0;background:#fff}
+#vbar{position:absolute;top:0;left:0;right:0;height:56px;line-height:56px;padding:0 24px;background:#171a2b;font-size:22px;color:#eef0f6}
+</style>
+</head>
+<body>
+<div id="home">
+  <div id="top"><div id="clock">--:--</div><div id="date"></div></div>
+  <div id="tiles"></div>
+  <div id="bar"><div>Setas: escolher. OK: abrir.</div><div id="modeinfo"></div></div>
+</div>
+<div id="view">
+  <div id="vbar">Voltar ou Esc: painel. OK: abrir direto, sem iframe, se a tela ficar em branco.</div>
+  <iframe id="frame" allow="autoplay; fullscreen; encrypted-media; gamepad" allowfullscreen></iframe>
+</div>
+
+<script>
+/* Edite aqui. mode: "direct" abre a página inteira; "iframe" abre dentro do painel. */
+var TILES = [
+  { name: "YouTube",     note: "Versão para TV",   url: "https://www.youtube.com/tv",         color: "#c4161c", mode: "direct" },
+  { name: "Netflix",     note: "Filmes e séries",  url: "https://www.netflix.com/browse",     color: "#2a0b0e", mode: "direct" },
+  { name: "Xbox Cloud",  note: "Jogos na nuvem",   url: "https://www.xbox.com/play",          color: "#0e6b1f", mode: "direct" }
+];
+
+var sel = 0, inView = false, forceIframe = false, tilesEl = document.getElementById("tiles");
+
+try { forceIframe = localStorage.getItem("forceIframe") === "1"; } catch (e) {}
+
+function build() {
+  var html = "";
+  for (var i = 0; i < TILES.length; i++) {
+    html += '<div class="tile" style="background:' + TILES[i].color + '" data-i="' + i + '"><b>' +
+            TILES[i].name + '</b><span>' + TILES[i].note + '</span></div>';
+  }
+  tilesEl.innerHTML = html;
+  var els = tilesEl.children;
+  for (var j = 0; j < els.length; j++) {
+    els[j].onclick = (function (n) { return function () { sel = n; paint(); openTile(); }; })(j);
+  }
+  paint();
+}
+
+function paint() {
+  var els = tilesEl.children;
+  for (var i = 0; i < els.length; i++) els[i].className = "tile" + (i === sel ? " on" : "");
+  document.getElementById("modeinfo").textContent =
+    "Verde ou M: modo iframe (teste) " + (forceIframe ? "ligado" : "desligado");
+}
+
+function openTile() {
+  var t = TILES[sel];
+  if (t.mode === "iframe" || forceIframe) {
+    document.getElementById("frame").src = t.url;
+    document.getElementById("view").style.display = "block";
+    inView = true;
+    window.focus();
+  } else {
+    window.location.href = t.url;
+  }
+}
+
+function closeView() {
+  document.getElementById("frame").src = "about:blank";
+  document.getElementById("view").style.display = "none";
+  inView = false;
+}
+
+function tick() {
+  var d = new Date(), h = d.getHours(), m = d.getMinutes();
+  document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  var dias = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+  var meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  document.getElementById("date").textContent = dias[d.getDay()] + ", " + d.getDate() + " de " + meses[d.getMonth()];
+}
+
+document.onkeydown = function (e) {
+  var k = e.keyCode;
+  var back = (k === 27 || k === 8 || k === 461 || k === 10009 || k === 4);
+  if (inView) {
+    if (back) { closeView(); e.preventDefault(); }
+    else if (k === 13) { window.location.href = TILES[sel].url; }
+    return;
+  }
+  if (k === 39) sel = Math.min(sel + 1, TILES.length - 1);
+  else if (k === 37) sel = Math.max(sel - 1, 0);
+  else if (k === 13) { openTile(); return; }
+  else if (k === 404 || k === 77) {
+    forceIframe = !forceIframe;
+    try { localStorage.setItem("forceIframe", forceIframe ? "1" : "0"); } catch (err) {}
+  } else return;
+  paint();
+  e.preventDefault();
+};
+
+build(); tick(); setInterval(tick, 20000);
+</script>
+</body>
+</html>
